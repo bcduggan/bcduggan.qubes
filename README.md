@@ -1,3 +1,3 @@
-# Ansible Collection - bcduggan.qubes_ansible_aux
+# Ansible Collection - bcduggan.qubes
 
 Documentation for the collection.
