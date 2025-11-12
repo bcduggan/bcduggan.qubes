@@ -18,7 +18,7 @@ options:
     default: false
 
 requirements:
-  - ansible_collections.bcduggan.qubes_ansible_aux.plugins.module_utils.qubes_prefs 
+  - ansible_collections.bcduggan.qubes.plugins.module_utils.qubes_prefs 
 
 author:
   - Brian Duggan <brian@dugga.net>
@@ -140,7 +140,7 @@ prefs:
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.bcduggan.qubes_ansible_aux.plugins.module_utils.qubes_prefs import QubesPrefs
+from ansible_collections.bcduggan.qubes.plugins.module_utils.qubes_prefs import QubesPrefs
 
 def main():
   module = AnsibleModule(
