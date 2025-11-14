@@ -161,23 +161,18 @@ class PolicyModule():
       "after_header": f"{self.policy_util.name} ({header_tag})"
     }
 
-  def _absent_result(self, changed: bool, before_state: str) -> Result | DiffResult:
-    anti_state = (
+  def _absent_result(self, changed: bool) -> Result | DiffResult:
+
+    before_state = (
       "present"
-      if before_state == "absent"
+      if changed
       else "absent"
     )
-
-    after_state = (
-      anti_state
-      if changed
-      else before_state
-    ) + os.linesep
 
     return (
       {
         **self._result(changed),
-        "diff": self._diff_result("state", before_state + os.linesep, after_state)
+        "diff": self._diff_result("state", before_state + os.linesep, "absent" + os.linesep)
       }
       if self.ansible_module._diff
       else self._result(changed)
@@ -191,13 +186,13 @@ class PolicyModule():
       "absent"
       if token == "new"
       else "present"
-    ) + os.linesep
+    )
 
     after_state = (
       "present"
       if changed
       else before_state
-    ) + os.linesep
+    )
 
     present_result = {
       **self._result(changed),
@@ -209,7 +204,7 @@ class PolicyModule():
       {
         **present_result,
         "diff": [
-          self._diff_result("state", before_state, after_state),
+          self._diff_result("state", before_state + os.linesep, after_state + os.linesep),
           self._diff_result("content", before_content, after_content)
         ]
       }
@@ -237,10 +232,11 @@ class PolicyModule():
       token = "new"
 
     # Will not create an empty policy file
-    if self.ansible_module.check_mode or current_content == new_content:
+    if current_content == new_content:
       changed = False
     else:
-      self._replace(new_content, token)
+      if not self.ansible_module.check_mode:
+        self._replace(new_content, token)
       changed = True
 
     self.ansible_module.exit_json(
@@ -250,24 +246,15 @@ class PolicyModule():
   def absent(self) -> None:
     policies = self.policy_util.list()
 
-    current_state = (
-      "present"
-      if self.policy_util.name in policies
-      else "absent"
-    )
-
-    if self.ansible_module.check_mode:
-      changed = False
-    else:
-      try:
+    if self.policy_util.name in policies:
+      changed = True
+      if not self.ansible_module.check_mode:
         self.policy_util.remove()
-      except PolicyUtilError:
-        changed = False
-      else:
-        changed = True
+    else:
+      changed = False
 
     self.ansible_module.exit_json(
-      **self._absent_result(changed, current_state),
+      **self._absent_result(changed),
     )
 
   def run(self) -> None:
