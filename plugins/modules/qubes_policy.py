@@ -154,11 +154,16 @@ class PolicyModule():
     }
 
   def _diff_result(self, header_tag: str, before: str, after: str) -> DiffResultValue:
+    name = (
+      self.policy_util.include_parent_path / self.policy_util.name
+      if self.policy_util.is_include else
+      self.policy_util.name
+    )
     return {
       "before": before,
-      "before_header": f"{self.policy_util.name} ({header_tag})",
+      "before_header": f"{name} ({header_tag})",
       "after": after,
-      "after_header": f"{self.policy_util.name} ({header_tag})"
+      "after_header": f"{name} ({header_tag})"
     }
 
   def _absent_result(self, changed: bool) -> Result | DiffResult:
