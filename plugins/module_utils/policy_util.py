@@ -1,4 +1,5 @@
 import functools
+from os import curdir
 from pathlib import PurePosixPath
 from qrexec.policy.admin_client import PolicyClient
 import qrexec.tools.qubes_policy_lint as linter
@@ -35,6 +36,7 @@ def client_tool(func, *args, **kwargs):
   return wrapper
 
 class PolicyUtil:
+  parent_path = PurePosixPath(curdir)
   include_parent_path = PurePosixPath(u"include")
 
   def __init__(self, name: str):
@@ -48,7 +50,7 @@ class PolicyUtil:
 
     if parent_path == self.include_parent_path:
       self.is_include = True
-    elif parent_path == name:
+    elif parent_path == self.parent_path:
       self.is_include = False
     else:
       raise PolicyUtilParentValidationError(self.include_parent_path, parent_path)
