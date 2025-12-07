@@ -1,0 +1,13 @@
+{% for mgmtvm in mgmtvms %}
+admin.vm.Create.AppVM        * {{ mgmtvm }} dom0                  allow
+admin.vm.Create.StandaloneVM * {{ mgmtvm }} dom0                  allow
+admin.vm.Create.TemplateVM   * {{ mgmtvm }} dom0                  allow
+admin.vm.Remove              * {{ mgmtvm }} @tag:created-by-{{ mgmtvm }}  allow target=dom0
+qubes.Filecopy               * {{ mgmtvm }} @tag:created-by-{{ mgmtvm }}  allow
+qubes.WaitForSession         * {{ mgmtvm }} @tag:created-by-{{ mgmtvm }}  allow
+qubes.VMShell                * {{ mgmtvm }} @tag:created-by-{{ mgmtvm }}  allow
+qubes.VMRootShell            * {{ mgmtvm }} @tag:created-by-{{ mgmtvm }}  allow user=root
+{% if not loop.last %}
+
+{% endif %}
+{% endfor %}

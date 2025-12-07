@@ -1,0 +1,4 @@
+!include-service qubes.PostInstall              * include/admin-clone
+!include-service admin.vm.volume.CloneFrom      * include/admin-clone
+# Apparently not necessary to clone but prevents additional RPC access denial:
+!include-service admin.vm.device.testclass.List * include/admin-clone

@@ -1,0 +1,54 @@
+---
+- name: Apply policies
+  vars:
+    adminvm: "{{ admin_policy_adminvm }}"
+    mgmtvms: "{{ admin_policy_mgmtvms }}"
+    updatevm: "{{ lookup('bcduggan.qubes.qubes_prefs', 'updatevm') }}"
+  block:
+    # This task is usually reflexive.
+    # The VM that runs this task must already be present in include/admin-policy-rwx
+    # It is useful to ensure that admin-policy-rwx is exclusively granted to the executing VM.
+    - name: Allow AdminVMs to read and write RPC policies
+      bcduggan.qubes.rpc_policy:
+        name: include/admin-policy-rwx
+        content: "{{ lookup('ansible.builtin.template', 'templates/include/admin-policy-rwx.j2') }}"
+
+    - name: Install include/admin-clone
+      bcduggan.qubes.rpc_policy:
+        name: include/admin-clone
+        content: "{{ lookup('ansible.builtin.template', 'templates/include/admin-clone.j2') }}"
+
+    - name: Install include/admin-local-rwx
+      bcduggan.qubes.rpc_policy:
+        name: include/admin-local-rwx
+        content: "{{ lookup('ansible.builtin.template', 'templates/include/admin-local-rwx.j2') }}"
+
+    - name: Install include/admin-local-ro
+      bcduggan.qubes.rpc_policy:
+        name: include/admin-local-ro
+        content: "{{ lookup('ansible.builtin.template', 'templates/include/admin-local-ro.j2') }}"
+
+    - name: Install include/admin-global-rwx
+      bcduggan.qubes.rpc_policy:
+        name: include/admin-global-rwx
+        content: "{{ lookup('ansible.builtin.template', 'templates/include/admin-global-rwx.j2') }}"
+
+    - name: Install include/admin-global-ro
+      bcduggan.qubes.rpc_policy:
+        name: include/admin-global-ro
+        content: "{{ lookup('ansible.builtin.template', 'templates/include/admin-global-ro.j2') }}"
+
+    - name: Install 30-admin-clone.policy
+      bcduggan.qubes.rpc_policy:
+        name: 30-admin-clone.policy
+        content: "{{ lookup('ansible.builtin.template', 'templates/30-admin-clone.policy.j2') }}"
+
+    - name: Install 30-admin-template.policy
+      bcduggan.qubes.rpc_policy:
+        name: 30-admin-template.policy
+        content: "{{ lookup('ansible.builtin.template', 'templates/30-admin-template.policy.j2') }}"
+
+    - name: Install 30-admin-mgmt.policy
+      bcduggan.qubes.rpc_policy:
+        name: 30-admin-mgmt.policy
+        content: "{{ lookup('ansible.builtin.template', 'templates/30-admin-mgmt.policy.j2') }}"

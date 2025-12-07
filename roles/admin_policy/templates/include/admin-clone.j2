@@ -1,0 +1,19 @@
+## This file controls policy for cloning template VMs
+
+## Note that policy parsing stops at the first match.
+
+## Please use a single # to start your custom comments
+
+## Add your entries here
+
+## This file is controlled by the bcduggan.qubes.admin_policy role
+
+# Allow non-dom0 AdminVM to clone any template
+{{ adminvm }} @anyvm allow target=dom0
+
+{% for mgmtvm in mgmtvms %}
+{% if loop.first %}
+# Allow MgmtVMs to clone qubes tagged with 'clonable-by-<mgmtvm>'
+{% endif %}
+{{ mgmtvm }} @tag:clonable-by-{{ mgmtvm }} allow target=dom0
+{% endfor %}
