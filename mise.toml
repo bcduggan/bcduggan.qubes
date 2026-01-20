@@ -1,0 +1,12 @@
+[tools]
+gh = "latest"
+git-cliff = "2.12.0"
+shellcheck = "latest"
+yq = "latest"
+
+[env]
+_.source = { path = "env.sh", tools = true }
+
+[tasks.clean]
+description = "Remove build artifacts"
+run = "rm --recursive --force dist"

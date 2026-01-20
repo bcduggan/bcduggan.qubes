@@ -1,3 +1,3 @@
 # Ansible Collection - bcduggan.qubes
 
-Documentation for the collection.
+Opinionated Qubes workstation configuration

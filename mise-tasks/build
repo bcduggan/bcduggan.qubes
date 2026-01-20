@@ -1,0 +1,14 @@
+#!/usr/bin/sh
+#MISE description="Build collection release artifacts"
+#MISE sources=["galaxy.yml"]
+#MISE outputs=["dist/{{ env.COLLECTION }}.tar.gz", "dist/{{ env.COLLECTION }}.sig"]
+#MISE depends=["clean"]
+
+set -euf
+
+mkdir dist
+
+ansible-galaxy collection build --output-path dist
+
+tar --to-stdout --gunzip --extract --file "dist/${COLLECTION}.tar.gz" MANIFEST.json \
+| gpg --detach-sign --output "dist/${COLLECTION}.sig"
