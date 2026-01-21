@@ -2,7 +2,7 @@
 ---
 namespace: bcduggan
 name: qubes
-version: 0.1.0-dev
+version: 0.0.0
 description: Opinionated Qubes workstation configuration
 readme: README.md
 authors:
@@ -18,11 +18,8 @@ repository: "https://github.com/bcduggan/bcduggan.qubes"
 issues: https://github.com/bcduggan/bcduggan.qubes/issues
 build_ignore:
   - .gitignore
+  - .env.sh
   - mise.toml
   - cliff.toml
-  - env.sh
-  - mise-tasks/**
-  - mise-tasks
-  - dist/**
-  - dist
-
+  - build/*
+  - build

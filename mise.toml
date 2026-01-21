@@ -5,8 +5,37 @@ shellcheck = "latest"
 yq = "latest"
 
 [env]
-_.source = { path = "env.sh", tools = true }
+_.source = { path = ".env.sh", tools = true }
+BQ_COLLECTION = { value = "{{ env.BQ_NAMESPACE }}-{{ env.BQ_NAME }}", tools = true }
+BQ_PACKAGE = { value = "{{ env.BQ_COLLECTION }}-{{ env.BQ_VERSION }}", tools = true }
+BQ_TARBALL = { value = "{{ env.BQ_PACKAGE }}.tar.gz", tools = true }
+BQ_SIGNATURE = { value = "{{ env.BQ_PACKAGE }}.sig", tools = true }
+BQ_MANIFEST = { value = "{{ env.BQ_PACKAGE }}-MANIFEST.json", tools = true }
 
-[tasks.clean]
-description = "Remove build artifacts"
-run = "rm --recursive --force dist"
+[tasks."build:tarball"]
+description = "Build collection tarball"
+sources = ["galaxy.yml"]
+outputs = "build/{{ env.BQ_TARBALL }}"
+run = "ansible-galaxy collection build --output-path build"
+
+[tasks."build:manifest"]
+description = "Extract collection tarball MANIFEST.json"
+depends = "build:tarball"
+sources = ["build/{{ env.BQ_TARBALL }}"]
+outputs = "build/{{ env.BQ_MANIFEST }}"
+run = "tar --gunzip --extract --file build/{{ env.BQ_TARBALL }} --to-stdout MANIFEST.json > build/{{ env.BQ_MANIFEST }}"
+
+[tasks."build:signature"]
+description = "Sign collection MANIFEST.json"
+depends = "build:manifest"
+sources = ["build/MANIFEST.json"]
+outputs = "build/{{ env.BQ_SIGNATURE }}"
+run = "gpg --detach-sign --output build/{{ env.BQ_SIGNATURE }} build/{{ env.BQ_MANIFEST }}"
+
+[tasks."build:clean:current"]
+description = "Remove build artifacts for current version"
+run = "rm --force build/{{ env.BQ_PACKAGE }}[-.]*"
+
+[tasks."build:clean:all"]
+description = "Remove all build artifacts"
+run = "rm --recursive --force build"
