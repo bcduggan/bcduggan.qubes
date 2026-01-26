@@ -1,41 +1,161 @@
 [tools]
+ansible = "latest"
 gh = "latest"
-git-cliff = "2.12.0"
+git-cliff = "latest"
 shellcheck = "latest"
 yq = "latest"
 
-[env]
-_.source = { path = ".env.sh", tools = true }
-BQ_COLLECTION = { value = "{{ env.BQ_NAMESPACE }}-{{ env.BQ_NAME }}", tools = true }
-BQ_PACKAGE = { value = "{{ env.BQ_COLLECTION }}-{{ env.BQ_VERSION }}", tools = true }
-BQ_TARBALL = { value = "{{ env.BQ_PACKAGE }}.tar.gz", tools = true }
-BQ_SIGNATURE = { value = "{{ env.BQ_PACKAGE }}.sig", tools = true }
-BQ_MANIFEST = { value = "{{ env.BQ_PACKAGE }}-MANIFEST.json", tools = true }
 
-[tasks."build:tarball"]
-description = "Build collection tarball"
+[env]
+_.source = [
+  { path = ".galaxy.env", tools = true },
+  { path = ".cliff.env", tools = true }
+]
+BQ_GITHUB_REMOTE = { required = true }
+BQ_GALAXY_API_TOKEN = { redact = true, required = true }
+
+[tasks.clean]
+description = "Remove build artifacts"
+usage = '''
+flag "-v --version <version>" {
+  help "Collection build to clean"
+  env "BQ_VERSION"
+}
+'''
+run = "rm --recursive --force build/{{ env.BQ_COLLECTION }}-${usage_version:?}[-.]*"
+
+
+[tasks."build:archive"]
+description = "Build collection archive"
+alias = "build"
 sources = ["galaxy.yml"]
-outputs = "build/{{ env.BQ_TARBALL }}"
+outputs = "build/{{ env.BQ_ARCHIVE }}"
 run = "ansible-galaxy collection build --output-path build"
 
+
 [tasks."build:manifest"]
-description = "Extract collection tarball MANIFEST.json"
-depends = "build:tarball"
-sources = ["build/{{ env.BQ_TARBALL }}"]
+description = "Extract MANIFEST.json from collection archive"
+depends = "build:archive"
+sources = ["build/{{ env.BQ_ARCHIVE }}"]
 outputs = "build/{{ env.BQ_MANIFEST }}"
-run = "tar --gunzip --extract --touch --file build/{{ env.BQ_TARBALL }} --directory build --transform 's/MANIFEST.json/{{ env.BQ_MANIFEST }}/' MANIFEST.json"
+run = "tar --gunzip --extract --touch --file build/{{ env.BQ_ARCHIVE }} --directory build --transform 's/MANIFEST.json/{{ env.BQ_MANIFEST }}/' MANIFEST.json"
+
 
 [tasks."build:signature"]
 description = "Sign collection MANIFEST.json"
 depends = "build:manifest"
-sources = ["build/MANIFEST.json"]
+sources = ["build/{{ env.BQ_MANIFEST }}"]
 outputs = "build/{{ env.BQ_SIGNATURE }}"
 run = "gpg --detach-sign --output build/{{ env.BQ_SIGNATURE }} build/{{ env.BQ_MANIFEST }}"
 
-[tasks."build:clean:current"]
-description = "Remove build artifacts for current version"
-run = "rm --force build/{{ env.BQ_PACKAGE }}[-.]*"
 
-[tasks."build:clean:all"]
-description = "Remove all build artifacts"
-run = "rm --recursive --force build"
+[tasks."release:bump:galaxy"]
+description = "Bump collection version in galaxy.yml"
+hide = true
+run = "yq --inplace '.version = strenv(BQ_BUMPED_VERSION)' galaxy.yml"
+
+
+[tasks."release:bump:changelog"]
+description = "Bump release version in CHANGELOG.md"
+hide = true
+run = "git cliff --output --bump"
+
+
+[tasks."release:tag"]
+description = "Commit and tag release metadata"
+hide = true
+sources = ["galaxy.yml", "CHANGELOG.md"]
+outputs = [".git/refs/tags/{{ env.BQ_VERSION }}"]
+run = [
+  "git add -- galaxy.yml CHANGELOG.md",
+  "git commit --message '{{ env.BQ_RELEASE_COMMIT_MESSAGE }}'",
+  "git tag --sign --message '{{ env.BQ_RELEASE_TAG_MESSAGE }}' '{{ env.BQ_VERSION }}'",
+]
+
+
+[tasks."release:build"]
+description = "Build collection archive and signature for release"
+hide = true
+env.BQ_AUTSTASH = "true"
+depends = ["release:tag"]
+sources = [".git/refs/tags/{{ env.BQ_VERSION }}"]
+outputs = ["build/{{ env.BQ_ARCHIVE }}", "build/{{ env.BQ_SIGNATURE }}"]
+run = [
+  { task = "clean" },
+  { task = "build:signature" }
+]
+
+
+[tasks."release:publish:github"]
+description = "Create GitHub release"
+hide = true
+depends = ["release:build"]
+sources = [
+  ".git/refs/tags/{{ env.BQ_VERSION }}",
+  "build/{{ env.BQ_ARCHIVE }}",
+  "build/{{ env.BQ_SIGNATURE }}",
+]
+env.BQ_CURRENT_BRANCH = "{{ exec(command='git symbolic-ref --short HEAD') }}"
+run = [
+  "git push --atomic {{ env.BQ_REMOTE }} {{ env.BQ_CURRENT_BRANCH }} {{ env.BQ_VERSION }}",
+  "gh release create --fail-on-no-commits --verify-tag --generate-notes {{ env.BQ_VERSION }} build/{{ env.BQ_ARCHIVE }} build/{{ env.BQ_SIGNATURE }}",
+]
+
+
+[tasks."release:publish:galaxy"]
+description = "Publish collection on Ansible Galaxy"
+hide = true
+depends = "release:build"
+sources = ["build/{{ env.BQ_ARCHIVE }}"]
+run = "ansible-galaxy collection publish --token {{ env.BQ_GALAXY_API_TOKEN }} build/{{ env.BQ_ARCHIVE }}"
+
+
+[tasks."release:publish"]
+description = "Publish all releases"
+hide = true
+run = { tasks = ["release:publish:github", "release:publish:galaxy"] }
+
+
+[tasks."release:preflight"]
+description = "Sanity check environment for release"
+env.BQ_HEAD_SHA = "{{ exec(command='git rev-parse HEAD') }}"
+env.BQ_UPSTREAM_SHA = "{{ exec(command='git rev-parse @{upstream}') }}"
+env.BQ_UPSTREAM_REF = "{{ exec(command='git rev-parse --abbrev-ref @{upstream}') }}"
+env.BQ_UPSTREAM_REMOTE = "{{ exec(command='echo ${BQ_UPSTREAM_REF} | cut -f1 -d/') }}"
+env.BQ_UPSTREAM_BRANCH = "{{ exec(command='echo ${BQ_UPSTREAM_REF} | cut -f2 -d/') }}"
+env.BQ_GITHUB_BRANCH_SHA = "{{ exec(command='git ls-remote --exit-code ${BQ_GITHUB_REMOTE} ${BQ_UPSTREAM_BRANCH} | cut -f1 -d\\\t')}}"
+# Simultaneously checks gh auth:
+env.BQ_GITHUB_DEFAULT_BRANCH = """{{ exec(command="gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'") }}"""
+run = [
+  # Fail if working directory or index is dirty:
+  "! git status --porcelain --untracked-files=normal | grep '.'",
+  # Fail if HEAD is detached
+  # _or_
+  # Fail if current branch is not configured git default branch:
+  """[ "$(git symbolic-ref --short HEAD)" = "$(git config get init.defaultbranch)" ]""",
+  # Fail if tag for `git-cliff --bumped-version` already exists:
+  # Fix: delete local tag
+  """! git tag | grep --word-regexp "${BQ_BUMPED_VERSION}"""",
+  # Fail if tag for `git-cliff --bumped-version` already exists on GitHub:
+  # Fix: delete tag on remote as long as it doesn't have a GitHub immutable release associated with it
+  "! git ls-remote --exit-code ${BQ_GITHUB_REMOTE} ${BQ_BUMPED_VERSION}",
+  # Fail if the current upstream remote doesn't match the configured GitHub remote:
+  """[ "${BQ_UPSTREAM_REMOTE}" = "${BQ_GITHUB_REMOTE}" ]""",
+  # Fail if the upstream SHA doesn't match the SHA for the upstream branch on GitHub:
+  # Fix: git pull
+  """[ "${BQ_UPSTREAM_SHA}" = "${BQ_GITHUB_BRANCH_SHA}" ]""",
+  # Fail if the HEAD ancestor SHA doesn't match the upstream branch SHA":
+  # Fix: git push
+  """[ "${BQ_HEAD_SHA}" = "${BQ_UPSTREAM_SHA}" ]""",
+  # Fail if the upstream branch doesn't match this GitHub repo's default branch:
+  """[ "${BQ_UPSTREAM_BRANCH}" = "${BQ_GITHUB_DEFAULT_BRANCH}" ]""",
+]
+
+[tasks.release]
+description = "Release collection"
+depends = ["release:preflight"]
+run = [
+  { task = "release:preflight" },
+  { task = "release:bump:*" },
+  "mise run release:publish",
+]
