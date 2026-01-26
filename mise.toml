@@ -23,7 +23,7 @@ description = "Extract collection tarball MANIFEST.json"
 depends = "build:tarball"
 sources = ["build/{{ env.BQ_TARBALL }}"]
 outputs = "build/{{ env.BQ_MANIFEST }}"
-run = "tar --gunzip --extract --file build/{{ env.BQ_TARBALL }} --to-stdout MANIFEST.json > build/{{ env.BQ_MANIFEST }}"
+run = "tar --gunzip --extract --touch --file build/{{ env.BQ_TARBALL }} --directory build --transform 's/MANIFEST.json/{{ env.BQ_MANIFEST }}/' MANIFEST.json"
 
 [tasks."build:signature"]
 description = "Sign collection MANIFEST.json"
