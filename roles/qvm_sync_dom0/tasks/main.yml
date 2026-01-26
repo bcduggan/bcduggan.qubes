@@ -1,0 +1,8 @@
+---
+- name: Install qvm-sync-dom0
+  ansible.builtin.copy:
+    src: qvm-sync-dom0
+    dest: /usr/local/bin/qvm-sync-dom0
+    owner: root
+    group: root
+    mode: "0755"

@@ -1,0 +1,83 @@
+#!/usr/bin/bash
+
+set -eufo pipefail
+
+echo_usage () {
+  echo "Copy directory from Qubes VM to dom0"
+  echo
+  echo "Usage: ${SCRIPT_NAME} <SOURCE_VM> <SOURCE_DIR> <DESTINATION_DIR>"
+}
+
+usage () {
+  echo_usage
+  exit
+}
+
+usage_not_qubes () {
+  echo_usage
+  echo
+  echo "Run this script in dom0 on Qubes OS."
+  exit
+}
+
+usage_not_dom0 () {
+  QUBESDB_NAME="$(qubesdb-read /name)"
+
+  echo_usage
+  echo
+  cat <<EOF
+Run this script in dom0. To copy this script to dom0:
+
+dom0$ mkdir ~/bin
+dom0$ qvm-run --pass-io ${QUBESDB_NAME} "cat $(realpath "${0}")" > ~/bin/${SCRIPT_NAME}
+dom0$ chmod 700 ~/bin/${SCRIPT_NAME}
+EOF
+
+  exit
+}
+
+usage_no_source_vm () {
+  echo_usage
+  echo
+  echo "Source VM '${SOURCE_VM}' does not exist."
+  exit
+}
+
+cleanup () {
+  rm --recursive --force "${TEMP_DIR}"
+}
+
+run () {
+  SCRIPT_NAME=$(basename "${0}")
+
+  # If qubesdb-list isn't in $PATH, we're probably not on a Qubes VM
+  which qubesdb-list > /dev/null || usage_not_qubes
+
+  # dom0 doesn't have a /name record
+  qubesdb-list / | grep --line-regexp 'name' > /dev/null && usage_not_dom0
+
+  [ "${#}" -eq 3 ] || usage
+
+  # If qubesdb-list is in $PATH and qvm-ls isn't, we're probably not on dom0
+  which qvm-ls > /dev/null || usage_not_dom0
+
+  SOURCE_VM="${1}"
+  SOURCE_DIR="${2}"
+  DEST_DIR="${3}"
+
+  qvm-ls "${SOURCE_VM}" > /dev/null || usage_no_source_vm
+
+  TEMP_DIR=$(mktemp -t --directory "${SCRIPT_NAME}.XXX")
+
+  trap cleanup EXIT
+
+  set -x
+  
+  qvm-run --pass-io "${SOURCE_VM}" 'tar --create --file=- --directory="'"${SOURCE_DIR}"'" .' | tar --extract --file=- --directory="${TEMP_DIR}"
+
+  rm --recursive --force "${DEST_DIR}"
+
+  mv "${TEMP_DIR}" "${DEST_DIR}"
+}
+
+run "${@}"
