@@ -19,7 +19,7 @@ description = "Remove build artifacts"
 usage = '''
 flag "-v --version <version>" {
   help "Collection build to clean"
-  env "BQ_VERSION"
+  env "BQ_GALAXY_VERSION"
 }
 '''
 run = "rm --recursive --force build/{{ env.BQ_COLLECTION }}-${usage_version:?}[-.]*"
@@ -52,7 +52,7 @@ run = "gpg --detach-sign --output build/{{ env.BQ_SIGNATURE }} build/{{ env.BQ_M
 [tasks."release:bump:galaxy"]
 description = "Bump collection version in galaxy.yml"
 hide = true
-run = "yq --inplace '.version = strenv(BQ_BUMPED_VERSION)' galaxy.yml"
+run = "yq --inplace '.version = strenv(BQ_BUMPED_GALAXY_VERSION)' galaxy.yml"
 
 
 [tasks."release:bump:changelog"]
@@ -65,11 +65,11 @@ run = "git cliff --output --bump"
 description = "Commit and tag release metadata"
 hide = true
 sources = ["galaxy.yml", "CHANGELOG.md"]
-outputs = [".git/refs/tags/{{ env.BQ_VERSION }}"]
+outputs = [".git/refs/tags/{{ env.BQ_TAG_VERSION }}"]
 run = [
   "git add -- galaxy.yml CHANGELOG.md",
   "git commit --message '{{ env.BQ_RELEASE_COMMIT_MESSAGE }}'",
-  "git tag --sign --message '{{ env.BQ_RELEASE_TAG_MESSAGE }}' '{{ env.BQ_VERSION }}'",
+  "git tag --sign --message '{{ env.BQ_RELEASE_TAG_MESSAGE }}' '{{ env.BQ_TAG_VERSION }}'",
 ]
 
 
@@ -78,7 +78,7 @@ description = "Build collection archive and signature for release"
 hide = true
 env.BQ_AUTSTASH = "true"
 depends = ["release:tag"]
-sources = [".git/refs/tags/{{ env.BQ_VERSION }}"]
+sources = [".git/refs/tags/{{ env.BQ_TAG_VERSION }}"]
 outputs = ["build/{{ env.BQ_ARCHIVE }}", "build/{{ env.BQ_SIGNATURE }}"]
 run = [
   { task = "clean" },
@@ -91,14 +91,14 @@ description = "Create GitHub release"
 hide = true
 depends = ["release:build"]
 sources = [
-  ".git/refs/tags/{{ env.BQ_VERSION }}",
+  ".git/refs/tags/{{ env.BQ_TAG_VERSION }}",
   "build/{{ env.BQ_ARCHIVE }}",
   "build/{{ env.BQ_SIGNATURE }}",
 ]
 env.BQ_CURRENT_BRANCH = "{{ exec(command='git symbolic-ref --short HEAD') }}"
 run = [
-  "git push --atomic {{ env.BQ_REMOTE }} {{ env.BQ_CURRENT_BRANCH }} {{ env.BQ_VERSION }}",
-  "gh release create --fail-on-no-commits --verify-tag --generate-notes {{ env.BQ_VERSION }} build/{{ env.BQ_ARCHIVE }} build/{{ env.BQ_SIGNATURE }}",
+  "git push --atomic {{ env.BQ_REMOTE }} {{ env.BQ_CURRENT_BRANCH }} {{ env.BQ_TAG_VERSION }}",
+  "gh release create --fail-on-no-commits --verify-tag --generate-notes {{ env.BQ_TAG_VERSION }} build/{{ env.BQ_ARCHIVE }} build/{{ env.BQ_SIGNATURE }}",
 ]
 
 
@@ -135,10 +135,10 @@ run = [
   """[ "$(git symbolic-ref --short HEAD)" = "$(git config get init.defaultbranch)" ]""",
   # Fail if tag for `git-cliff --bumped-version` already exists:
   # Fix: delete local tag
-  """! git tag | grep --word-regexp "${BQ_BUMPED_VERSION}"""",
+  """! git tag | grep --word-regexp "${BQ_BUMPED_TAG_VERSION}"""",
   # Fail if tag for `git-cliff --bumped-version` already exists on GitHub:
   # Fix: delete tag on remote as long as it doesn't have a GitHub immutable release associated with it
-  "! git ls-remote --exit-code ${BQ_GITHUB_REMOTE} ${BQ_BUMPED_VERSION}",
+  "! git ls-remote --exit-code ${BQ_GITHUB_REMOTE} ${BQ_BUMPED_TAG_VERSION}",
   # Fail if the current upstream remote doesn't match the configured GitHub remote:
   """[ "${BQ_UPSTREAM_REMOTE}" = "${BQ_GITHUB_REMOTE}" ]""",
   # Fail if the upstream SHA doesn't match the SHA for the upstream branch on GitHub:
