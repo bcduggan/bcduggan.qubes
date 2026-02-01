@@ -65,55 +65,62 @@ run = "git cliff --output --bump"
 description = "Commit and tag release metadata"
 hide = true
 sources = ["galaxy.yml", "CHANGELOG.md"]
-outputs = [".git/refs/tags/{{ env.BQ_TAG_VERSION }}"]
+outputs = [".git/refs/tags/{{ env.BQ_VERSION }}"]
 run = [
   "git add -- galaxy.yml CHANGELOG.md",
   "git commit --message '{{ env.BQ_RELEASE_COMMIT_MESSAGE }}'",
-  "git tag --sign --message '{{ env.BQ_RELEASE_TAG_MESSAGE }}' '{{ env.BQ_TAG_VERSION }}'",
+  "git tag --sign --message '{{ env.BQ_RELEASE_TAG_MESSAGE }}' '{{ env.BQ_VERSION }}'",
 ]
 
 
 [tasks."release:build"]
 description = "Build collection archive and signature for release"
 hide = true
-env.BQ_AUTSTASH = "true"
-depends = ["release:tag"]
+depends = ["release:tag", "clean"]
 sources = [".git/refs/tags/{{ env.BQ_TAG_VERSION }}"]
 outputs = ["build/{{ env.BQ_ARCHIVE }}", "build/{{ env.BQ_SIGNATURE }}"]
-run = [
-  { task = "clean" },
-  { task = "build:signature" }
-]
+run = { task = "build:signature" }
+
+
+[tasks."release:push:github"]
+description = "Push release branch and tag to GitHub"
+hide = true
+depends = ["release:tag"]
+sources = [".git/refs/tags/{{ env.BQ_TAG_VERSION }}"]
+run = "git push --atomic {{ env.BQ_GITHUB_REMOTE }} {{ env.BQ_CURRENT_BRANCH }} {{ env.BQ_TAG_VERSION }}"
 
 
 [tasks."release:publish:github"]
 description = "Create GitHub release"
 hide = true
-depends = ["release:build"]
+depends = [
+  "release:push:github",
+  "release:build",
+]
 sources = [
-  ".git/refs/tags/{{ env.BQ_TAG_VERSION }}",
   "build/{{ env.BQ_ARCHIVE }}",
   "build/{{ env.BQ_SIGNATURE }}",
 ]
 env.BQ_CURRENT_BRANCH = "{{ exec(command='git symbolic-ref --short HEAD') }}"
-run = [
-  "git push --atomic {{ env.BQ_REMOTE }} {{ env.BQ_CURRENT_BRANCH }} {{ env.BQ_TAG_VERSION }}",
-  "gh release create --fail-on-no-commits --verify-tag --generate-notes {{ env.BQ_TAG_VERSION }} build/{{ env.BQ_ARCHIVE }} build/{{ env.BQ_SIGNATURE }}",
-]
+run = "gh release create --fail-on-no-commits --verify-tag --generate-notes {{ env.BQ_TAG_VERSION }} build/{{ env.BQ_ARCHIVE }} build/{{ env.BQ_SIGNATURE }}"
 
 
 [tasks."release:publish:galaxy"]
-description = "Publish collection on Ansible Galaxy"
+description = """
+Publish collection on Ansible Galaxy
+
+Depends on release:push:github. If the branch and tag have been pushed then they are _releasable_ on GitHub.
+"""
 hide = true
-depends = "release:build"
+depends = "release:push:github"
 sources = ["build/{{ env.BQ_ARCHIVE }}"]
 run = "ansible-galaxy collection publish --token {{ env.BQ_GALAXY_API_TOKEN }} build/{{ env.BQ_ARCHIVE }}"
 
 
 [tasks."release:publish"]
-description = "Publish all releases"
+description = "Publish Ansible Galaxy and GitHub releases in order"
 hide = true
-run = { tasks = ["release:publish:github", "release:publish:galaxy"] }
+run = { tasks = ["release:publish:galaxy", "release:publish:github"] }
 
 
 [tasks."release:preflight"]
