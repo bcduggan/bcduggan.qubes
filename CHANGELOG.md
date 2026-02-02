@@ -1,3 +1,8 @@
+## [0.1.1] - 2026-02-02
+
+### 🐛 Bug Fixes
+
+- Set minimium ansible version in galaxy metadata
 ## [0.1.0] - 2026-02-02
 
 ### 🚀 Features
