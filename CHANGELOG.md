@@ -1,3 +1,12 @@
+## [0.1.2] - 2026-02-02
+
+### 🐛 Bug Fixes
+
+- Exclude mise.local.toml from collection archive
+
+### ⚙️ Miscellaneous Tasks
+
+- Ascii armor collection signature
 ## [0.1.1] - 2026-02-02
 
 ### 🐛 Bug Fixes
