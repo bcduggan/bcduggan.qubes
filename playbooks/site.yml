@@ -3,4 +3,4 @@
   hosts: dom0
   become: true
   roles:
-  - bcduggan.qubes.qvm_sync_dom0
+    - bcduggan.qubes.qvm_sync_dom0

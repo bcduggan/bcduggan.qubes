@@ -1,0 +1,10 @@
+#SPDX-License-Identifier: GPL-3.0-only
+galaxy_info:
+  author: Brian Duggan
+  description: "Install qvm-sync-dom0 script"
+  issue_tracker_url: https://github.com/bcduggan/bcduggan.qubes/issues
+  license: GPL-3.0-only
+  min_ansible_version: "2.16"
+  galaxy_tags:
+    - qubes
+dependencies: []
