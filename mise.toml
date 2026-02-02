@@ -46,7 +46,7 @@ description = "Sign collection MANIFEST.json"
 depends = "build:manifest"
 sources = ["build/{{ env.BQ_MANIFEST }}"]
 outputs = "build/{{ env.BQ_SIGNATURE }}"
-run = "gpg --detach-sign --output build/{{ env.BQ_SIGNATURE }} build/{{ env.BQ_MANIFEST }}"
+run = "gpg --armor --detach-sign --output build/{{ env.BQ_SIGNATURE }} build/{{ env.BQ_MANIFEST }}"
 
 
 [tasks."release:bump:galaxy"]
