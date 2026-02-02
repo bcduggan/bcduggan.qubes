@@ -21,6 +21,7 @@ build_ignore:
   - .galaxy.env
   - .cliff.env
   - mise.toml
+  - mise.local.toml
   - cliff.toml
   - build/*
   - build
