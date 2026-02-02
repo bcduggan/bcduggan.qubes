@@ -2,7 +2,7 @@
 ---
 namespace: bcduggan
 name: qubes
-version: "0.0.0"
+version: "0.1.0"
 description: Opinionated Qubes workstation configuration
 readme: README.md
 authors:
